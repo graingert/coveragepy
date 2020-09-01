@@ -360,6 +360,7 @@ class CoverageConfig(object):
         ('relative_files', 'run:relative_files', 'boolean'),
         ('run_include', 'run:include', 'list'),
         ('run_omit', 'run:omit', 'list'),
+        ('source_pkgs', 'run:source', 'list'),
         ('source', 'run:source', 'list'),
         ('timid', 'run:timid', 'boolean'),
         ('_crash', 'run:_crash'),
