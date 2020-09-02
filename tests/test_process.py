@@ -1357,6 +1357,68 @@ class UnicodeFilePathsTest(CoverageTest):
         out = self.run_command("coverage report")
         self.assertEqual(out, report_expected)
 
+    def test_accented_directory_alias(self):
+        # Make a file with a non-ascii character in the directory name.
+        self.make_file(
+            ".coveragerc",
+            """\
+            [run]
+            parallel = True
+            source =
+              ./src
+              ./dest
+
+            [paths]
+            source =
+              ./src
+              ./dest
+            """
+        )
+        self.make_file(u"src/\xe2/accented.py", "print('accented')")
+        self.make_file(u"dest/\xe2/accented.py", "print('accented')")
+        out = self.run_command(u"coverage run dest/\xe2/accented.py")
+        self.assertEqual(out, "accented\n")
+        out = self.run_command(u"coverage combine")
+        self.assertEqual(out, "")
+
+        # The HTML report uses ascii-encoded HTML entities.
+        out = self.run_command("coverage html")
+        self.assertEqual(out, "")
+        self.assert_exists(u"htmlcov/src_\xe2_accented_py.html")
+        with open("htmlcov/index.html") as indexf:
+            index = indexf.read()
+        self.assertIn('<a href="src_&#226;_accented_py.html">src{os.sep}&#226;{os.sep}accented.py</a>'.format(os=os), index)
+
+        # The XML report is always UTF8-encoded.
+        out = self.run_command("coverage xml")
+        self.assertEqual(out, "")
+        with open("coverage.xml", "rb") as xmlf:
+            xml = xmlf.read()
+        self.assertIn(b' filename="\xc3\xa2/accented.py"', xml)
+        self.assertIn(b' name="accented.py"', xml)
+
+        dom = ElementTree.parse("coverage.xml")
+        elts = dom.findall(u".//package[@name='â']")
+        assert len(elts) == 1
+        assert elts[0].attrib == {
+            "branch-rate": u"0",
+            "complexity": u"0",
+            "line-rate": u"1",
+            "name": u"â",
+        }
+
+        report_expected = (
+            u"Name                Stmts   Miss  Cover\n"
+            u"---------------------------------------\n"
+            u"src{os.sep}\xe2{os.sep}accented.py       1      0   100%\n".format(os=os)
+        )
+
+        if env.PY2:
+            report_expected = report_expected.encode(output_encoding())
+
+        out = self.run_command("coverage report")
+        self.assertEqual(out, report_expected)
+
 
 class YankedDirectoryTest(CoverageTest):
     """Tests of what happens when the current directory is deleted."""
